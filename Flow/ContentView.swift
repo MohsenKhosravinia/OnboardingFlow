@@ -6,130 +6,221 @@
 //
 
 import SwiftUI
+import Observation
+
+struct LayoutLabel: Identifiable, Hashable {
+    var id: String { labelText }
+    var labelText: String
+    var labelSize: CGSize
+    var labelOffset: CGSize
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(labelText)
+    }
+}
+
+struct LayoutLine: Identifiable {
+    let id = UUID()
+    var lineStartX: CGFloat
+    var lineEndX: CGFloat
+    var isLineForward: Bool
+    var lineYOffset: CGFloat
+    let width: CGFloat = 1
+}
+
+struct ViewData: Identifiable {
+    var id: LayoutLabel { label }
+    let index: Int
+    let label: LayoutLabel
+    let line: LayoutLine
+    
+    static func ==(lhs: ViewData, rhs: ViewData) -> Bool {
+        lhs.label.id == rhs.label.id
+    }
+}
+
+@Observable
+final class ViewModel {
+    var views: [ViewData] = []
+    
+    init() {
+        setup()
+    }
+    
+    func setup() {
+        let firstLabel = LayoutLabel(
+            labelText: "time to get\nrefreshed",
+            labelSize: .zero,
+            labelOffset: .zero
+        )
+        let firstLine = LayoutLine(
+            lineStartX: 165,
+            lineEndX: 235,
+            isLineForward: true, 
+            lineYOffset: -10
+        )
+        let first = ViewData(
+            index: 0,
+            label: firstLabel,
+            line: firstLine
+        )
+        views.append(first)
+        
+        let secondLabel = LayoutLabel(
+            labelText: "research",
+            labelSize: .zero,
+            labelOffset: .init(width: 85, height: -40)
+        )
+        let secondLine = LayoutLine(
+            lineStartX: 75,
+            lineEndX: 150,
+            isLineForward: false, 
+            lineYOffset: -60
+        )
+        let second = ViewData(
+            index: 1,
+            label: secondLabel,
+            line: secondLine
+        )
+        views.append(second)
+        
+        let thirdLabel = LayoutLabel(
+            labelText: "design",
+            labelSize: .zero,
+            labelOffset: .init(width: 155, height: -90)
+        )
+        let thirdLine = LayoutLine(
+            lineStartX: 270,
+            lineEndX: 190,
+            isLineForward: true,
+            lineYOffset: -108
+        )
+        let third = ViewData(
+            index: 2,
+            label: thirdLabel,
+            line: thirdLine
+        )
+        views.append(third)
+        
+        let fourthLabel = LayoutLabel(
+            labelText: "apply",
+            labelSize: .zero,
+            labelOffset: .init(width: 100, height: -140)
+        )
+        let fourthLine = LayoutLine(
+            lineStartX: 95,
+            lineEndX: 230,
+            isLineForward: false,
+            lineYOffset: -156
+        )
+        let fourth = ViewData(
+            index: 3,
+            label: fourthLabel,
+            line: fourthLine
+        )
+        views.append(fourth)
+    }
+}
 
 struct ContentView: View {
+    let vm = ViewModel()
     @State private var animationProgress: CGFloat = 0.0
-    private let animationDuration: TimeInterval = 1
+    @State private var buttonOpacity: CGFloat = 0.0
+    private let animationDuration: TimeInterval = 0.5
     private let curveHeight: CGFloat = 130
-    private let offset: CGFloat = -25
+    private var curveRadius: CGFloat { curveHeight / 2 }
     private let tintColor: Color = .white
     private let lineWidth: CGFloat = 2
-
+    
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: .zero) {
-                    Text("time to get\nrefreshed")
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(2)
-                        .font(.system(size: 40, weight: .thin))
-                        .frame(height: 100)
+                    ForEach(vm.views) { view in
+                        Text(view.label.labelText)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(2)
+                            .font(.system(size: 40, weight: .thin))
+                            .offset(
+                                x: view.label.labelOffset.width,
+                                y: view.label.labelOffset.height
+                            )
+                        
+                        CapsuleLine(
+                            radius: curveRadius,
+                            startX: view.line.lineStartX,
+                            endX: view.line.lineEndX,
+                            forward: view.line.isLineForward
+                        )
+                        .trim(from: 0.0, to: animationProgress)
+                        .stroke(tintColor, lineWidth: view.line.width)
+                        .animation(
+                            Animation
+                                .easeIn(duration: animationDuration)
+                                .delay(Double(view.index) * animationDuration),
+                            value: animationProgress
+                        )
+                        .frame(width: .infinity, height: curveHeight)
+                        .onAppear {
+                            withAnimation {
+                                animationProgress = 1.0
+                            }
+                        }
+                        .offset(y: view.line.lineYOffset)
+                    }
                     
-                    CapsuleLine(
-                        radius: curveHeight / 2,
-                        startX: 180,
-                        endX: 240
-                    )
-                    .trim(from: 0.0, to: animationProgress)
-                    .stroke(tintColor, lineWidth: lineWidth)
-                    .animation(
-                        Animation.easeIn(duration: animationDuration), value: animationProgress
-                    )
-                    .frame(width: .infinity, height: curveHeight)
-                    .onAppear {
-                        withAnimation {
-                            animationProgress = 1.0
+                    HStack {
+                        Spacer()
+                        
+                        Button {
+                            print("Tapped")
+                        } label: {
+                            Image(systemName: "arrow.right.circle.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 50, height: 50)
+                                .foregroundColor(.white)
                         }
                     }
-                    .offset(CGSize(width: 0, height: offset))
-                    
-                    
-                    
-                    Text("research")
-                        .font(.system(size: 40, weight: .thin))
-                        .offset(CGSize(width: 85.0, height: 2 * offset))
-                    
-                    CapsuleLine(
-                        radius: curveHeight / 2,
-                        startX: 80,
-                        endX: 150,
-                        forward: false
-                    )
-                    .trim(from: 0.0, to: animationProgress)
-                    .stroke(tintColor, lineWidth: lineWidth)
-                    .animation(
-                        Animation.linear(duration: animationDuration).delay(animationDuration),
-                        value: animationProgress
-                    )
-                    .frame(width: .infinity, height: curveHeight)
+                    .offset(y: CGFloat(vm.views.count * -45))
+                    .padding(.horizontal)
+                    .opacity(buttonOpacity)
+                    .animation(Animation.easeOut(duration: animationDuration).delay(Double(vm.views.count) * animationDuration),
+                    value: animationProgress)
                     .onAppear {
-                        withAnimation {
-                            animationProgress = 1.0
+                        withAnimation(
+                            .easeInOut(duration: animationDuration)
+                            .delay(Double(vm.views.count) * animationDuration)
+                        ) {
+                            buttonOpacity = buttonOpacity == 1.0 ? .zero : 1.0
                         }
                     }
-                    .offset(CGSize(width: 0, height: 3 * offset))
-                    
-                    
-                    
-                    Text("design")
-                        .font(.system(size: 40, weight: .thin))
-                        .offset(CGSize(width: 160, height: 4 * offset))
-                    
-                    CapsuleLine(
-                        radius: curveHeight / 2,
-                        startX: 280,
-                        endX: 170
-                    )
-                    .trim(from: 0.0, to: animationProgress)
-                    .stroke(tintColor, lineWidth: lineWidth)
-                    .animation(
-                        Animation.linear(duration: animationDuration).delay(2 * animationDuration),
-                        value: animationProgress
-                    )
-                    .frame(width: .infinity, height: curveHeight)
-                    .onAppear {
-                        withAnimation {
-                            animationProgress = 1.0
-                        }
-                    }
-                    .offset(CGSize(width: 0, height: 5 * offset))
-                    
-                    
-                    
-                    Text("apply")
-                        .font(.system(size: 40, weight: .thin))
-                        .offset(CGSize(width: 70, height: 6 * offset))
-                    
-                    CapsuleLine(
-                        radius: curveHeight / 2,
-                        startX: 60,
-                        endX: 220,
-                        forward: false
-                    )
-                    .trim(from: 0.0, to: animationProgress)
-                    .stroke(tintColor, lineWidth: lineWidth)
-                    .animation(
-                        Animation.easeOut(duration: animationDuration).delay(3 * animationDuration),
-                        value: animationProgress
-                    )
-                    .frame(width: .infinity, height: curveHeight)
-                    .onAppear {
-                        withAnimation {
-                            animationProgress = 1.0
-                        }
-                    }
-                    .offset(CGSize(width: 0, height: 7 * offset))
                 }
                 .foregroundStyle(Color.white)
                 .padding(.horizontal, 20)
             }
         }
         .background {
-            Color.black.ignoresSafeArea(edges: .all)
+            Color.mint.ignoresSafeArea(edges: .all)
         }
-        .navigationTitle("Flow")
-        .tint(Color.white)
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct ViewPreference: PreferenceKey {
+    static var defaultValue: CGSize = .zero
+    static func reduce(value: inout CGSize, nextValue: () -> Value) {}
+}
+
+extension View {
+    func getSize(size: @escaping (CGSize) -> Void) -> some View {
+        background(
+            GeometryReader { proxy in
+                Color(uiColor: UIColor.systemBrown.withAlphaComponent(CGFloat.random(in: 0...1)))
+                    .preference(key: ViewPreference.self, value: proxy.size)
+            }
+        )
+        .onPreferenceChange(ViewPreference.self, perform: size)
     }
 }
 
@@ -153,7 +244,7 @@ struct CapsuleLine: Shape {
     
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        path.move(to: CGPoint(x: startX, y: 0))
+        path.move(to: CGPoint(x: min(startX, rect.width - radius), y: 0))
         path.addLine(to: CGPoint(x: forward ? (rect.width - radius) : radius, y: 0))
         path.addArc(
             center: CGPoint(x: forward ? rect.width - radius : radius, y: radius),
@@ -171,5 +262,4 @@ struct CapsuleLine: Shape {
     NavigationStack {
         ContentView()
     }
-    .navigationTitle("Test")
 }
